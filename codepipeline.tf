@@ -1,7 +1,5 @@
-resource "aws_codestarconnections_connection" "connection" {
+data "aws_codestarconnections_connection" "connection" {
   name          = var.aws_codestarconnections_connection_name
-  provider_type = var.aws_codestarconnections_provider_type
-  tags          = var.tags
 }
 
 resource "aws_codepipeline" "scraper_pipeline" {
@@ -43,7 +41,7 @@ resource "aws_codepipeline" "scraper_pipeline" {
       output_artifacts = ["SourceArtifact"]
 
       configuration = {
-        ConnectionArn    = aws_codestarconnections_connection.connection.arn
+        ConnectionArn    = data.aws_codestarconnections_connection.connection.arn
         FullRepositoryId = var.talana_scraper_bot_repository_id
         BranchName       = var.talana_scraper_bot_repository_branch
       }
@@ -113,7 +111,7 @@ resource "aws_iam_role_policy" "scraper_codepipeline_policy" {
       },
       {
         "Action" : "codestar-connections:UseConnection",
-        "Resource" : aws_codestarconnections_connection.connection.arn,
+        "Resource" : data.aws_codestarconnections_connection.connection.arn,
         "Effect" : "Allow"
       },
       {

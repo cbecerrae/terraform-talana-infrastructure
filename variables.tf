@@ -13,6 +13,11 @@ variable "project_name" {
 variable "tags" {
   description = "Tags for AWS resources"
   type        = map(string)
+
+  validation {
+    condition     = alltrue([contains(keys(var.tags), "owner"), contains(keys(var.tags), "project")])
+    error_message = "Los tags 'owner' y 'project' son obligatorios."
+  }
 }
 
 variable "subscription_email" {
@@ -78,12 +83,6 @@ variable "talana_credentials" {
 variable "aws_codestarconnections_connection_name" {
   description = "Connection name of the AWS CodeStar Connections connection"
   type        = string
-}
-
-variable "aws_codestarconnections_provider_type" {
-  description = "Provider type for the AWS CodeStar Connections connection"
-  type        = string
-  default     = "GitHub"
 }
 
 variable "talana_scraper_bot_repository_id" {
