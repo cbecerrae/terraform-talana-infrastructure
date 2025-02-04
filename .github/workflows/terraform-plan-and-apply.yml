@@ -54,6 +54,7 @@ jobs:
         with:
             name: terraform-plan
             path: tfplan  # The file containing the plan
+            retention-days: 1  # Retain the artifact for 1 day
 
   apply:
     needs: plan  # Ensure the 'plan' job completes before this one
