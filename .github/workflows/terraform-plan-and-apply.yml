@@ -6,6 +6,7 @@ on:
       - main  # Trigger the workflow when there is a push to the 'main' branch
     paths-ignore:
       - '**/*.md'  # Exclude markdown files (*.md) from triggering the workflow
+      - '.github/**' # Exclude changes in files within .github/ from triggering the workflow
   workflow_dispatch:  # Allows manual triggering of the workflow from the GitHub UI
 
 concurrency:
@@ -15,8 +16,6 @@ concurrency:
 jobs:
   plan:
     runs-on: ubuntu-latest
-    outputs:
-      terraform_plan_message: ${{ steps.terraform_plan_output.outputs.terraform_plan_message }}
 
     steps:
       # Checkout the repository code
@@ -49,13 +48,6 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-        # Capture the terraform plan output logs
-      - name: Capture Terraform Plan Output
-        id: terraform_plan_output
-        run: |
-            terraform plan -no-color > plan_output.txt
-            echo "terraform_plan_message=$(grep 'No changes. Your infrastructure matches the configuration.' plan_output.txt)" >> $GITHUB_OUTPUT
-
         # Upload the plan as an artifact for manual review
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
@@ -66,17 +58,10 @@ jobs:
   apply:
     needs: plan  # Ensure the 'plan' job completes before this one
     runs-on: ubuntu-latest
-    
-    # Skip the apply job if there are no changes in the Terraform plan
-    if: ${{ needs.plan.outputs.terraform_plan_message != 'No changes. Your infrastructure matches the configuration.' }}
-
     environment:
       name: production  # This job will run in the 'production' environment and trigger the 'required reviewers' rule for manual approval before applying.
 
     steps:
-      - name : Test
-        run : echo "${{ needs.plan.outputs.terraform_plan_message }}"
-        
       # Checkout the repository code
       - name: Checkout code
         uses: actions/checkout@v4
