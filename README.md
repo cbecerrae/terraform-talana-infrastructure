@@ -46,24 +46,7 @@ git clone https://github.com/cbecerrae/terraform-talana-infrastructure.git
 cd terraform-talana-infrastructure
 ```  
 
-### 2. Initialize Terraform
-
-Before running `terraform init`, make sure to configure the `cloud` block in the `terraform.tf` file with your **organization** and **workspace** information. Replace the values below with your actual organization and workspace details:
-
-```hcl
-cloud {
-  organization = "your-organization-name"
-  workspace    = "your-workspace-name"
-}
-```
-
-Alternatively, you can **comment out** the `cloud` block if you prefer to run Terraform locally without HCP, or if you want to configure it later. Once configured, run the following command to initialize Terraform:
-
-```bash
-terraform init
-```
-
-### 3. Configure AWS Credentials 
+### 2. Configure AWS Credentials 
 
 Ensure your AWS credentials are properly configured using one of the following methods:  
 
@@ -79,13 +62,89 @@ Ensure your AWS credentials are properly configured using one of the following m
 - **HCP Terraform**:  
    If you're using HashiCorp Cloud Platform (HCP) Terraform, you should configure your AWS credentials as part of a variable set within the HCP platform to securely manage and store sensitive information like AWS access keys. Ensure you create and reference the appropriate variable set in HCP for your AWS credentials.
 
-### 4. Configure Variables
+### 3. Initialize Terraform  
 
-Before setting up the variables in a `terraform.tfvars` file, carefully review the `variables.tf` file to customize optional variables and provide values for the required ones. 
+By default, this repository is configured to use an **Amazon S3 backend** to store the Terraform state. However, you can switch to **HCP Terraform** or **Local Backend** by commenting/uncommenting the relevant blocks in `terraform.tf`.  
 
-Create a `terraform.tfvars` file to contain the values for the variables used in your Terraform configuration. Ensure that this file is placed in the root directory of your Terraform project.
+#### S3 Backend  
 
-### 5. Create and Import CodeStar Connection  
+The backend stores the Terraform state in an **Amazon S3 bucket** and uses DynamoDB for state locking.  
+
+1. **Ensure the S3 Bucket and DynamoDB Table Exist:**  
+   - **S3 Bucket:** `terraform-talana-automation-terraform-state`  
+   - **DynamoDB Table:** `terraform-talana-automation-terraform-state-locks`  
+
+   If they are not created, follow these steps:  
+
+   - **Create the S3 Bucket:**  
+     - Go to **[AWS S3 Console](https://s3.console.aws.amazon.com/s3/home)**  
+     - Click **"Create bucket"**  
+     - Name it: `terraform-talana-automation-terraform-state` (alter the name to ensure it is unique across all AWS accounts)
+     - Select a **region** (e.g., `us-east-1`)  
+     - Enable **versioning**  
+     - Click **"Create bucket"**  
+
+   - **Create the DynamoDB Table:**  
+     - Go to **[AWS DynamoDB Console](https://console.aws.amazon.com/dynamodb/home)**  
+     - Click **"Create table"**  
+     - Name it: `terraform-talana-automation-terraform-state-locks`  
+     - **Partition key:** `LockID` (Type: `String`)  
+     - **Capacity mode:** On-demand  
+     - Click **"Create table"**  
+  
+   Don't forget to manually tag both resources with the tags **owner** and **project**. 
+
+2. **Verify the Terraform Backend Configuration (`terraform.tf`)**  
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "terraform-talana-automation-terraform-state"
+    key            = "state/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "terraform-talana-automation-terraform-state-locks"
+  }
+}
+```  
+
+---
+
+#### HCP Terraform  
+
+If you prefer to use **HCP Terraform**, comment out the **S3 backend block** in `terraform.tf` and uncomment the **cloud block**:  
+
+```hcl
+cloud {
+  organization = "your-organization-name"
+  workspaces {
+    name = "your-workspace-name"
+  }
+}
+```  
+
+---
+
+#### Local Backend  
+
+If you prefer to keep the Terraform state locally, comment out both **S3** and **cloud** backend blocks in `terraform.tf`. Terraform will then store the `terraform.tfstate` file in the local project directory.  
+
+### 4. Initialize Terraform  
+
+Once the backend is configured, run the following command:  
+
+```bash
+terraform init
+```  
+
+### 5. Configure Variables  
+
+Before setting up the variables in a `terraform.tfvars` file, carefully review the `variables.tf` file to customize optional variables and provide values for the required ones.  
+
+Create a `terraform.tfvars` file in the root directory of your Terraform project to define the values for the variables used in your configuration.  
+
+If you are using **HCP Terraform** as the backend, you can define variables directly in the **workspace settings** by navigating to **"Variables"** in your workspace on **[HCP Terraform Workspaces](https://app.terraform.io/app/workspaces)**. These variables take precedence over `terraform.tfvars` when running in the cloud.
+
+### 6. Create and Import CodeStar Connection  
 
 Create an **AWS CodeStar Connection** in your AWS account that has authorization to a fork of the [Talana Scraper Bot repository](https://github.com/cbecerrae/talana-scraper-bot). Once created, import it into your Terraform configuration:
 
@@ -95,7 +154,7 @@ terraform import aws_codestarconnections_connection.connection <codestar_connect
 
 Replace `<codestar_connection_arn>` with the actual **ARN** of the CodeStar Connection in AWS.  
 
-### 6. Apply the Terraform Configuration 
+### 7. Apply the Terraform Configuration 
 
 ```bash
 terraform apply
@@ -103,7 +162,7 @@ terraform apply
 
 Review the plan and confirm the deployment by typing `yes` when prompted.  
 
-## 7. Clean-up  
+## 8. Clean-up  
 
 To remove the created resources, run the following Terraform command:  
 
