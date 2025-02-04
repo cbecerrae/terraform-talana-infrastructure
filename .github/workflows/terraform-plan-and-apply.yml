@@ -1,0 +1,111 @@
+name: Terraform Plan and Apply with Manual Approval
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow when there is a push to the 'main' branch
+    paths-ignore:
+      - '**/*.md'  # Exclude markdown files (*.md) from triggering the workflow
+  workflow_dispatch:  # Allows manual triggering of the workflow from the GitHub UI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}  # Unique group for the workflow based on workflow name and ref (branch or tag)
+  cancel-in-progress: true  # Cancel any in-progress runs from the same group if a new one is triggered
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      terraform_plan_message: ${{ steps.terraform_plan_output.outputs.terraform_plan_message }}
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up AWS credentials using GitHub Secrets
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # Set up Terraform (version 1.10.5)
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5  # Use Terraform version 1.10.5
+
+      # Initialize Terraform and configure the backend
+      - name: Terraform Init
+        run: terraform init
+
+      # Create terraform.tfvars using GitHub Secrets
+      - name: Create terraform.tfvars from secret
+        run: echo "${{ secrets.TERRAFORM_TFVARS }}" > terraform.tfvars  # Write the secret into terraform.tfvars
+
+        # Run terraform plan and save the plan to a file
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+        # Capture the terraform plan output logs
+      - name: Capture Terraform Plan Output
+        id: terraform_plan_output
+        run: |
+            terraform plan -no-color > plan_output.txt
+            echo "terraform_plan_message=$(grep 'No changes. Your infrastructure matches the configuration.' plan_output.txt)" >> $GITHUB_OUTPUT
+
+        # Upload the plan as an artifact for manual review
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+            name: terraform-plan
+            path: tfplan  # The file containing the plan
+
+  apply:
+    needs: plan  # Ensure the 'plan' job completes before this one
+    runs-on: ubuntu-latest
+    
+    # Skip the apply job if there are no changes in the Terraform plan
+    if: ${{ needs.plan.outputs.terraform_plan_message != 'No changes. Your infrastructure matches the configuration.' }}
+
+    environment:
+      name: production  # This job will run in the 'production' environment and trigger the 'required reviewers' rule for manual approval before applying.
+
+    steps:
+      - name : Test
+        run : echo "${{ needs.plan.outputs.terraform_plan_message }}"
+        
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up AWS credentials using GitHub Secrets
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # Set up Terraform (version 1.10.5)
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5  # Use Terraform version 1.10.5
+
+      # Initialize Terraform and configure the backend
+      - name: Terraform Init
+        run: terraform init
+
+      # Download the Terraform plan artifact
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan  # Name of the artifact to download
+          path: ./  # Download to the current directory
+
+      # Apply the pre-generated Terraform plan
+      - name: Terraform Apply
+        run: terraform apply tfplan
