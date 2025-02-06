@@ -6,7 +6,8 @@ on:
       - main  # Trigger the workflow when there is a push to the 'main' branch
     paths-ignore:
       - '**/*.md'  # Exclude markdown files (*.md) from triggering the workflow
-      - '.github/**' # Exclude changes in files within .github/ from triggering the workflow
+      - '.github/**'  # Exclude changes in files within .github/ from triggering the workflow
+      - 'LICENSE**'  # Exclude license files from triggering the workflow
   workflow_dispatch:  # Allows manual triggering of the workflow from the GitHub UI
 
 concurrency:

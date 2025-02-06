@@ -18,7 +18,7 @@ resource "aws_codepipeline" "scraper_pipeline" {
           includes = ["main"]
         }
         file_paths {
-          excludes = ["**.md", ".github/**"]
+          excludes = ["**.md", ".github/**", "LICENSE**"]
         }
       }
     }
