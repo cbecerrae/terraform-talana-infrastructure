@@ -1,13 +1,13 @@
-variable "aws_region" {
-  description = "AWS region in which to provision infrastructure"
+# ───────────── REQUIRED VARIABLES ─────────────
+
+variable "aws_codestarconnections_connection_name" {
+  description = "Connection name of the AWS CodeStar Connections connection"
   type        = string
-  default     = "us-east-1"
 }
 
-variable "project_name" {
-  description = "Name of the project"
+variable "subscription_email" {
+  description = "Email to subscribe to the SNS topic"
   type        = string
-  default     = "terraform-talana-automation"
 }
 
 variable "tags" {
@@ -16,13 +16,30 @@ variable "tags" {
 
   validation {
     condition     = alltrue([contains(keys(var.tags), "owner"), contains(keys(var.tags), "project")])
-    error_message = "Los tags 'owner' y 'project' son obligatorios."
+    error_message = "The tags 'owner' and 'project' are required."
   }
 }
 
-variable "subscription_email" {
-  description = "Email to subscribe to the SNS topic"
+variable "talana_credentials" {
+  description = "Talana credentials to pass to the ECS task"
+  type = object({
+    user_email    = string
+    user_password = string
+  })
+  sensitive = true
+}
+
+variable "talana_scraper_bot_repository_id" {
+  description = "ID of the Talana Scraper Bot repository authorized in the AWS CodeStar Connections connection. Expected format: 'owner/repository_name'"
   type        = string
+}
+
+# ───────────── OPTIONAL VARIABLES ─────────────
+
+variable "aws_region" {
+  description = "AWS region in which to provision infrastructure"
+  type        = string
+  default     = "us-east-1"
 }
 
 variable "mark_schedules" {
@@ -33,6 +50,7 @@ variable "mark_schedules" {
     schedule_expression  = string
     schedule_description = string
   }))
+
   default = [
     {
       mark_type            = "In"
@@ -65,29 +83,21 @@ variable "mark_schedules" {
   }
 }
 
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+  default     = "terraform-talana-automation"
+
+  validation {
+    condition     = length(var.project_name) <= 30
+    error_message = "The project name must not exceed 30 characters."
+  }
+}
+
 variable "schedule_expression_timezone" {
   description = "Timezone for the schedule expression"
   type        = string
   default     = "America/Lima"
-}
-
-variable "talana_credentials" {
-  description = "Talana credentials to pass to the ECS task"
-  type = object({
-    user_email    = string
-    user_password = string
-  })
-  sensitive = true
-}
-
-variable "aws_codestarconnections_connection_name" {
-  description = "Connection name of the AWS CodeStar Connections connection"
-  type        = string
-}
-
-variable "talana_scraper_bot_repository_id" {
-  description = "ID of the Talana Scraper Bot repository authorized in the AWS CodeStar Connections connection. Expected format: 'owner/repository_name'"
-  type        = string
 }
 
 variable "talana_scraper_bot_repository_branch" {
