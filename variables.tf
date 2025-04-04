@@ -55,8 +55,8 @@ variable "mark_schedules" {
     {
       mark_type            = "In"
       schedule_name_suffix = "in-scheduler"
-      schedule_expression  = "cron(25 7 ? * 2-6 *)"
-      schedule_description = "Scheduler that triggers the ECS tasks with an 'In' Attendance Mark from Monday to Friday at 7:25 AM Lima time (UTC-5)."
+      schedule_expression  = "cron(55 7 ? * 2-6 *)"
+      schedule_description = "Scheduler that triggers the ECS tasks with an 'In' Attendance Mark from Monday to Friday at 7:55 AM Lima time (UTC-5)."
     },
     {
       mark_type            = "Out"
